@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="16.1.1" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimilarProducts.Domain\SimilarProducts.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="DTOs\Availability\" />
+    <Folder Include="DTOs\Admin\" />
+    <Folder Include="DTOs\Brands\" />
+    <Folder Include="DTOs\Stores\" />
+    <Folder Include="DTOs\Themes\" />
+    <Folder Include="DTOs\Reviews\" />
+    <Folder Include="DTOs\Scan\" />
+    <Folder Include="DTOs\Products\" />
+    <Folder Include="Mappings\" />
+    <Folder Include="DTOs\Common\" />
+  </ItemGroup>
+
+</Project>
