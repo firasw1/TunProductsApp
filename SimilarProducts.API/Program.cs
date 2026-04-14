@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using SimilarProducts.API.Middleware;
+using SimilarProducts.Application;
+using SimilarProducts.Infrastructure;
 using SimilarProducts.Infrastructure;
 using System.Text;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================
@@ -11,7 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 // =========================
 
 builder.Services.AddControllers();
-
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
 // Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -68,6 +71,8 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+
+
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -123,7 +128,6 @@ app.UseMiddleware<SimilarProducts.API.Middleware.ExceptionMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
