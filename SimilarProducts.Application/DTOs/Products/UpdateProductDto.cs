@@ -1,6 +1,6 @@
 ﻿namespace SimilarProducts.Application.DTOs.Products;
 
-public class CreateProductDto
+public class UpdateProductDto
 {
     public int? BrandId { get; set; }
     public int SubCategoryId { get; set; }
@@ -10,9 +10,9 @@ public class CreateProductDto
     public string? Description { get; set; }
     public string? Composition { get; set; }
 
-    // Gardé en string pour rester cohérent avec ton design DTO actuel.
-    // Le service/validator fera ensuite la conversion vers l'enum Domain.
     public string OriginLevel { get; set; } = "Imported";
 
-    public List<int> TagIds { get; set; } = new();
+    // null => ne pas toucher
+    // []   => vider tous les tags
+    public List<int>? TagIds { get; set; }
 }

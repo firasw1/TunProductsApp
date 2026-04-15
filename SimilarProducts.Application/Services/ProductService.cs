@@ -4,7 +4,7 @@ using SimilarProducts.Domain.Common;
 using SimilarProducts.Domain.Entities;
 using SimilarProducts.Domain.Enums;
 using SimilarProducts.Domain.Interfaces.Repositories;
-using SimilarProducts.Domain.Interfaces.Services;
+//using SimilarProducts.Domain.Interfaces.Services;
 using System.Text.Json;
 namespace SimilarProducts.Application.Services;
 
@@ -40,7 +40,7 @@ public class ProductService
     private readonly IGenericRepository<BusinessOwner> _businessOwnerRepository;
 
     // Service IA : on le garde pour ne pas perdre la logique métier avancée
-    private readonly IAiAnalysisService _aiAnalysisService;
+    //private readonly IAiAnalysisService _aiAnalysisService;
 
     public ProductService(
         IUnitOfWork unitOfWork,
@@ -49,8 +49,9 @@ public class ProductService
         IGenericRepository<ProductImage> productImageRepository,
         IGenericRepository<Brand> brandRepository,
         IGenericRepository<BusinessOwner> businessOwnerRepository,
-        IGenericRepository<SubCategory> subCategoryRepository,
-        IAiAnalysisService aiAnalysisService)
+        IGenericRepository<SubCategory> subCategoryRepository
+        //, IAiAnalysisService aiAnalysisService
+        )
     {
         _unitOfWork = unitOfWork;
         _tagRepository = tagRepository;
@@ -58,7 +59,7 @@ public class ProductService
         _productImageRepository = productImageRepository;
         _brandRepository = brandRepository;
         _businessOwnerRepository = businessOwnerRepository;
-        _aiAnalysisService = aiAnalysisService;
+        //_aiAnalysisService = aiAnalysisService;
         _subCategoryRepository = subCategoryRepository;
     }
 
@@ -251,8 +252,7 @@ public class ProductService
             BioScore = product.AiAnalysis?.BioScore,
             NaturalScore = product.AiAnalysis?.NaturalScore,
             HealthScore = product.AiAnalysis?.HealthScore,
-            AiSummary = product.AiAnalysis?.Summary,
-
+            AiSummary = product.AiAnalysis?.AnalysisSummary,
             AverageRating = product.Reviews != null && product.Reviews.Any()
                 ? Math.Round(product.Reviews.Average(r => r.Rating), 2)
                 : 0,
@@ -261,6 +261,29 @@ public class ProductService
         };
 
         return dto;
+    }
+
+
+
+
+
+    private async Task<BusinessOwner> RequireApprovedBusinessOwnerAsync(
+    int userId,
+    CancellationToken cancellationToken = default)
+    {
+        var businessOwner = await _businessOwnerRepository.FirstOrDefaultAsync(
+            b => b.UserId == userId,
+            cancellationToken);
+
+        if (businessOwner == null)
+            throw new UnauthorizedAccessException(
+                "Vous n'êtes pas inscrit en tant que business owner.");
+
+        if (businessOwner.Status != BusinessOwnerStatus.Approved)
+            throw new UnauthorizedAccessException(
+                $"Votre compte business est en attente d'approbation (status: {businessOwner.Status}).");
+
+        return businessOwner;
     }
     // ═══════════════════════════════════════════════════════
     // CRÉATION — 3 SOURCES DIFFÉRENTES
@@ -587,7 +610,7 @@ public class ProductService
                 cancellationToken);
         }
 
-        _unitOfWork.Products.Delete(product);
+        _unitOfWork.Products.Remove(product);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
     // ═══════════════════════════════════════════════════════
@@ -654,7 +677,7 @@ public class ProductService
 
         foreach (var link in linksToRemove)
         {
-            _productTagRepository.Delete(link);
+            _productTagRepository.Remove(link);
         }
 
         if (linksToAdd.Count > 0 || linksToRemove.Count > 0)
@@ -709,6 +732,19 @@ public class ProductService
             ? null
             : value.Trim();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // ═══════════════════════════════════════════════════════
     // IMAGES / IA
@@ -883,7 +919,7 @@ public class ProductService
 
         var wasPrimary = image.IsPrimary;
 
-        _productImageRepository.Delete(image);
+        _productImageRepository.Remove(image);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Si on a supprimé l'image principale, on promeut une autre image si elle existe
@@ -910,22 +946,32 @@ public class ProductService
     /// Déclenche l'analyse IA si le produit possède une composition exploitable.
     /// Garde la logique métier avancée, mais isole l'appel réel à l'interface IA.
     /// </summary>
-    private async Task TryTriggerAiAnalysisAsync(
-        int productId,
-        CancellationToken cancellationToken = default)
+    //private async Task TryTriggerAiAnalysisAsync(
+    //    int productId,
+    //    CancellationToken cancellationToken = default)
+    //{
+    //    var product = await _unitOfWork.Products.GetByIdAsync(productId, cancellationToken);
+
+    //    if (product == null)
+    //        return;
+
+    //    if (string.IsNullOrWhiteSpace(product.Composition))
+    //        return;
+
+    //    // IMPORTANT :
+    //    // Adapte uniquement la ligne ci-dessous si le nom exact de la méthode
+    //    // dans IAiAnalysisService est différent dans ton projet.
+    //    await _aiAnalysisService.AnalyzeProductAsync(productId, cancellationToken);
+    //}
+
+    private Task TryTriggerAiAnalysisAsync(
+    int productId,
+    CancellationToken cancellationToken = default)
     {
-        var product = await _unitOfWork.Products.GetByIdAsync(productId, cancellationToken);
-
-        if (product == null)
-            return;
-
-        if (string.IsNullOrWhiteSpace(product.Composition))
-            return;
-
-        // IMPORTANT :
-        // Adapte uniquement la ligne ci-dessous si le nom exact de la méthode
-        // dans IAiAnalysisService est différent dans ton projet.
-        await _aiAnalysisService.AnalyzeProductAsync(productId, cancellationToken);
+        // IA non branchée pour le moment.
+        // On garde ce point d’extension pour réactiver l’analyse plus tard
+        // sans devoir refactorer tout ProductService.
+        return Task.CompletedTask;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -1052,4 +1098,9 @@ public class ProductService
         public string OriginLevel { get; set; } = string.Empty;
         public List<int> TagIds { get; set; } = new();
     }
+
+
+
+
+
 }

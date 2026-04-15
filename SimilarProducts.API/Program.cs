@@ -4,7 +4,6 @@ using Microsoft.OpenApi.Models;
 using SimilarProducts.API.Middleware;
 using SimilarProducts.Application;
 using SimilarProducts.Infrastructure;
-using SimilarProducts.Infrastructure;
 using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 

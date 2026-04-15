@@ -8,8 +8,27 @@ namespace SimilarProducts.Infrastructure.Repositories;
 
 public class ProductRepository : GenericRepository<Product>, IProductRepository
 {
+    private readonly AppDbContext _context;
+
     public ProductRepository(AppDbContext context) : base(context)
     {
+        _context = context;
+    }
+
+    public async Task<IReadOnlyList<Product>> GetAllWithDetailsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await BuildDetailsQuery()
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Product?> GetByIdWithDetailsAsync(
+        int productId,
+        CancellationToken cancellationToken = default)
+    {
+        return await BuildDetailsQuery()
+            .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
     }
 
     public async Task<Product?> GetByBarcodeAsync(
@@ -19,58 +38,43 @@ public class ProductRepository : GenericRepository<Product>, IProductRepository
         if (string.IsNullOrWhiteSpace(barcode))
             return null;
 
-        barcode = barcode.Trim();
+        var normalizedBarcode = barcode.Trim();
 
         return await BuildDetailsQuery()
-            .FirstOrDefaultAsync(p => p.Barcode == barcode, cancellationToken);
-    }
-
-    public async Task<Product?> GetByIdWithDetailsAsync(
-        int id,
-        CancellationToken cancellationToken = default)
-    {
-        return await BuildDetailsQuery()
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Barcode == normalizedBarcode, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Product>> GetBySubCategoryAsync(
         int subCategoryId,
-        int page,
-        int pageSize,
         CancellationToken cancellationToken = default)
     {
-        page = page < 1 ? 1 : page;
-        pageSize = pageSize < 1 ? 10 : pageSize;
-
-        return await _dbSet
-            .AsNoTracking()
-            .Where(p => p.SubCategoryId == subCategoryId && p.Status == ProductStatus.Approved)
-            .Include(p => p.Brand)
-            .Include(p => p.Images.Where(i => i.IsPrimary).OrderBy(i => i.DisplayOrder))
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+        return await BuildDetailsQuery()
+            .Where(p => p.SubCategoryId == subCategoryId)
+            .OrderBy(p => p.Name)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<Product>> SearchByNameAsync(
-        string query,
+        string searchTerm,
         int limit = 20,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(query))
+        if (string.IsNullOrWhiteSpace(searchTerm))
             return Array.Empty<Product>();
 
-        query = query.Trim();
-        limit = limit < 1 ? 20 : limit;
+        if (limit <= 0)
+            limit = 20;
 
-        return await _dbSet
-            .AsNoTracking()
+        if (limit > 100)
+            limit = 100;
+
+        var normalizedSearch = searchTerm.Trim().ToLower();
+
+        return await BuildDetailsQuery()
             .Where(p =>
-                p.Status == ProductStatus.Approved &&
-                EF.Functions.Like(p.Name, $"%{query}%"))
-            .Include(p => p.Brand)
-            .Include(p => p.Images.Where(i => i.IsPrimary).OrderBy(i => i.DisplayOrder))
+                p.Name.ToLower().Contains(normalizedSearch) ||
+                (p.Brand != null && p.Brand.Name.ToLower().Contains(normalizedSearch)) ||
+                (!string.IsNullOrWhiteSpace(p.Barcode) && p.Barcode!.ToLower().Contains(normalizedSearch)))
             .OrderBy(p => p.Name)
             .Take(limit)
             .ToListAsync(cancellationToken);
@@ -78,21 +82,11 @@ public class ProductRepository : GenericRepository<Product>, IProductRepository
 
     public async Task<IReadOnlyList<Product>> GetByStatusAsync(
         ProductStatus status,
-        int page,
-        int pageSize,
         CancellationToken cancellationToken = default)
     {
-        page = page < 1 ? 1 : page;
-        pageSize = pageSize < 1 ? 10 : pageSize;
-
-        return await _dbSet
-            .AsNoTracking()
+        return await BuildDetailsQuery()
             .Where(p => p.Status == status)
-            .Include(p => p.Brand)
-            .Include(p => p.Images.Where(i => i.IsPrimary).OrderBy(i => i.DisplayOrder))
             .OrderByDescending(p => p.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync(cancellationToken);
     }
 
@@ -100,14 +94,8 @@ public class ProductRepository : GenericRepository<Product>, IProductRepository
         int brandId,
         CancellationToken cancellationToken = default)
     {
-        return await _dbSet
-            .AsNoTracking()
+        return await BuildDetailsQuery()
             .Where(p => p.BrandId == brandId)
-            .Include(p => p.SubCategory)
-                .ThenInclude(sc => sc.Category)
-            .Include(p => p.Images.Where(i => i.IsPrimary).OrderBy(i => i.DisplayOrder))
-            .Include(p => p.ProductTags)
-                .ThenInclude(pt => pt.Tag)
             .OrderBy(p => p.Name)
             .ToListAsync(cancellationToken);
     }
@@ -119,23 +107,23 @@ public class ProductRepository : GenericRepository<Product>, IProductRepository
         if (string.IsNullOrWhiteSpace(barcode))
             return false;
 
-        barcode = barcode.Trim();
+        var normalizedBarcode = barcode.Trim();
 
-        return await _dbSet
-            .AsNoTracking()
-            .AnyAsync(p => p.Barcode == barcode, cancellationToken);
+        return await _context.Products
+            .AnyAsync(p => p.Barcode == normalizedBarcode, cancellationToken);
     }
 
     private IQueryable<Product> BuildDetailsQuery()
     {
-        return _dbSet
-            .AsNoTracking()
+        return _context.Products
             .Include(p => p.Brand)
             .Include(p => p.SubCategory)
                 .ThenInclude(sc => sc.Category)
-            .Include(p => p.Images.OrderBy(i => i.DisplayOrder))
             .Include(p => p.ProductTags)
                 .ThenInclude(pt => pt.Tag)
-            .Include(p => p.AiAnalysis);
+            .Include(p => p.Images)
+            .Include(p => p.AiAnalysis)
+            .Include(p => p.Reviews)
+            .AsSplitQuery();
     }
 }

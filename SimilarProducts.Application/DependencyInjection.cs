@@ -11,10 +11,9 @@ public static class DependencyInjection
     {
         // Services applicatifs
         services.AddScoped<AuthService>();
-
         // Validators FluentValidation
         services.AddValidatorsFromAssemblyContaining<RegisterValidator>();
-
+        services.AddScoped<ProductService>();
         // Plus tard, quand tu auras MappingProfile.cs :
         // services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
